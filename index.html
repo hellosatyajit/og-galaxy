@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OG Galaxy - Open Graph Image Explorer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: #888;
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+    }
+
+    .input-section {
+      margin-bottom: 2rem;
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    input {
+      flex: 1;
+      padding: 0.875rem 1rem;
+      border: 1px solid #333;
+      background: #1a1a1a;
+      color: #fff;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      border-color: #667eea;
+    }
+
+    input::placeholder {
+      color: #666;
+    }
+
+    button {
+      padding: 0.875rem 2rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .stats {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      padding: 1rem 1.5rem;
+      background: #1a1a1a;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .status {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      border: 1px solid;
+    }
+
+    .status.loading {
+      background: #1a2a3a;
+      border-color: #2a4a6a;
+      color: #6a9adc;
+    }
+
+    .status.error {
+      background: #2a1a1a;
+      border-color: #6a2a2a;
+      color: #dc6a6a;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: #667eea;
+    }
+
+    .card-image {
+      width: 100%;
+      aspect-ratio: 1.91 / 1;
+      object-fit: cover;
+      background: #0a0a0a;
+    }
+
+    .card-content {
+      padding: 1rem;
+    }
+
+    .card-title {
+      font-size: 0.85rem;
+      color: #aaa;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    .card-title a {
+      color: #667eea;
+      text-decoration: none;
+    }
+
+    .card-title a:hover {
+      text-decoration: underline;
+    }
+
+    .loader {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #333;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-left: 0.5rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 640px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      .input-wrapper {
+        flex-direction: column;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>OG Galaxy</h1>
+    <p class="subtitle">Explore Open Graph images across any website</p>
+
+    <div class="input-section">
+      <div class="input-wrapper">
+        <input 
+          type="text" 
+          id="domainInput" 
+          placeholder="Enter domain (e.g., example.com)"
+          autocomplete="off"
+        >
+        <button id="fetchBtn" onclick="fetchOgImages()">Explore</button>
+      </div>
+      
+      <div id="status" class="hidden"></div>
+    </div>
+
+    <div id="stats" class="stats hidden"></div>
+    <div id="grid" class="grid"></div>
+  </div>
+
+  <script>
+    const domainInput = document.getElementById('domainInput');
+    const fetchBtn = document.getElementById('fetchBtn');
+    const statusDiv = document.getElementById('status');
+    const statsDiv = document.getElementById('stats');
+    const gridDiv = document.getElementById('grid');
+
+    domainInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        fetchOgImages();
+      }
+    });
+
+    function showStatus(message, type = 'loading') {
+      statusDiv.className = `status ${type}`;
+      statusDiv.textContent = message;
+      statusDiv.classList.remove('hidden');
+    }
+
+    function hideStatus() {
+      statusDiv.classList.add('hidden');
+    }
+
+    function showStats(data) {
+      statsDiv.innerHTML = `
+        <div class="stat">
+          <div class="stat-label">Total URLs</div>
+          <div class="stat-value">${data.total}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Processed</div>
+          <div class="stat-value">${data.processed}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">OG Images Found</div>
+          <div class="stat-value">${data.found}</div>
+        </div>
+      `;
+      statsDiv.classList.remove('hidden');
+    }
+
+    async function fetchOgImages() {
+      const domain = domainInput.value.trim();
+      
+      if (!domain) {
+        showStatus('Please enter a domain', 'error');
+        return;
+      }
+
+      fetchBtn.disabled = true;
+      gridDiv.innerHTML = '';
+      statsDiv.classList.add('hidden');
+      showStatus('Fetching sitemap and analyzing pages...');
+
+      try {
+        const response = await fetch('http://localhost:3000/api/fetch-og-images', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ domain })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to fetch OG images');
+        }
+
+        hideStatus();
+        showStats(data);
+
+        if (data.pages.length === 0) {
+          gridDiv.innerHTML = '<p style="color: #888; grid-column: 1/-1; text-align: center; padding: 2rem;">No Open Graph images found on this site.</p>';
+        } else {
+          data.pages.forEach(page => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+              <img 
+                src="${page.ogImage}" 
+                alt="OG Image" 
+                class="card-image"
+                onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22210%22%3E%3Crect fill=%22%23222%22 width=%22400%22 height=%22210%22/%3E%3Ctext fill=%22%23666%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22sans-serif%22 font-size=%2214%22%3EImage unavailable%3C/text%3E%3C/svg%3E'"
+              >
+              <div class="card-content">
+                <div class="card-title">
+                  <a href="${page.url}" target="_blank" rel="noopener">${page.url}</a>
+                </div>
+              </div>
+            `;
+            gridDiv.appendChild(card);
+          });
+        }
+
+      } catch (error) {
+        showStatus(error.message, 'error');
+        statsDiv.classList.add('hidden');
+        gridDiv.innerHTML = '';
+      } finally {
+        fetchBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
