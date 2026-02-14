@@ -16,8 +16,9 @@ A minimal website that displays Open Graph images from all pages of any domain i
   - Error handling with user-friendly messages
   - Responsive design for mobile/desktop
 
-### Backend (`server.js`)
-- **Framework**: Express.js (Node.js)
+### Backend
+- **Local Development**: Express.js server (`server.js`)
+- **Production**: Vercel Serverless Function (`api/fetch-og-images.js`)
 - **Flow**:
   1. Receives domain from frontend
   2. Attempts to fetch sitemap.xml (tries multiple common URLs)
@@ -38,15 +39,20 @@ A minimal website that displays Open Graph images from all pages of any domain i
 
 ```
 /workspace/
-├── index.html          # Frontend UI
-├── server.js           # Backend API
-├── package.json        # Dependencies
-├── package-lock.json   # Locked dependencies
-├── .gitignore          # Git ignore rules
-├── .env.example        # Environment variable template
-├── README.md           # Full documentation
-├── QUICKSTART.md       # Quick start guide
-└── PROJECT_SUMMARY.md  # This file
+├── api/
+│   └── fetch-og-images.js  # Vercel serverless function
+├── index.html              # Frontend UI
+├── server.js               # Backend API (local dev)
+├── package.json            # Dependencies
+├── package-lock.json       # Locked dependencies
+├── vercel.json             # Vercel configuration
+├── .vercelignore           # Vercel deployment ignore
+├── .gitignore              # Git ignore rules
+├── .env.example            # Environment variable template
+├── README.md               # Full documentation
+├── DEPLOYMENT.md           # Deployment guide
+├── QUICKSTART.md           # Quick start guide
+└── PROJECT_SUMMARY.md      # This file
 ```
 
 ## Usage
@@ -101,13 +107,25 @@ Response:
 
 ## Deployment Ready
 
-The project is ready to deploy to any Node.js hosting platform:
-- Vercel
+The project is **optimized for Vercel** with serverless functions and includes configurations for:
+
+### Primary (Recommended):
+- **Vercel** - One-click deployment with `vercel --prod`
+
+### Also Compatible With:
 - Heroku
 - Railway
 - Render
 - Digital Ocean App Platform
 - AWS/GCP/Azure
+
+**Deploy in 10 seconds:**
+```bash
+npm install -g vercel
+vercel --prod
+```
+
+See `DEPLOYMENT.md` for detailed instructions.
 
 ## Future Enhancement Ideas
 

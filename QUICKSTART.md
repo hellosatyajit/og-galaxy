@@ -1,6 +1,15 @@
 # Quick Start Guide
 
-## Getting Started in 30 Seconds
+## Deploy to Production (10 Seconds)
+
+```bash
+npm install -g vercel
+vercel --prod
+```
+
+Done! Your app is live! 🚀
+
+## Local Development (30 Seconds)
 
 1. **Install dependencies**
    ```bash

@@ -25,6 +25,8 @@ npm install
 
 ## Usage
 
+### Local Development
+
 1. Start the server:
 ```bash
 npm start
@@ -37,13 +39,40 @@ http://localhost:3000
 
 3. Enter a domain (e.g., `example.com`) and click "Explore"
 
+### Deploy to Vercel
+
+#### Option 1: Deploy with Vercel CLI
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel
+```
+
+#### Option 2: Deploy via GitHub
+
+1. Push your code to GitHub
+2. Go to [vercel.com](https://vercel.com)
+3. Click "New Project"
+4. Import your GitHub repository
+5. Click "Deploy"
+
+That's it! Vercel will automatically detect the configuration and deploy your app.
+
+#### Option 3: Deploy Button
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/hellosatyajit/og-galaxy)
+
 ## Technical Details
 
-- **Backend**: Node.js + Express
+- **Backend**: Node.js + Express (local) / Vercel Serverless Functions (production)
 - **Sitemap Parsing**: xml2js
 - **HTML Parsing**: Cheerio
 - **Frontend**: Vanilla HTML/CSS/JavaScript
 - **Design**: Minimal, dark theme
+- **Deployment**: Vercel-ready with serverless architecture
 
 ## API Endpoint
 
