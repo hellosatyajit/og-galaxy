@@ -6,8 +6,12 @@ Explore Open Graph images across any website. Enter a domain and see all OG imag
 
 - 🔍 Automatically fetches and parses sitemaps
 - 🖼️ Extracts Open Graph images from all pages
-- 📊 Clean, minimal interface with image grid
-- ⚡ Fast concurrent processing
+- 📊 Complete page status tracking:
+  - ✅ Pages with OG images (image grid)
+  - ⚠️ Pages without OG images (list)
+  - ⏸️ Unprocessed pages (list)
+- 📈 Real-time stats for all page categories
+- ⚡ Fast concurrent processing with batching
 - 🌙 Dark mode design
 
 ## How it Works
@@ -92,11 +96,23 @@ Response:
   "total": 150,
   "processed": 50,
   "found": 45,
-  "pages": [
+  "notFound": 5,
+  "unprocessed": 100,
+  "pagesWithImages": [
     {
       "url": "https://example.com/page1",
       "ogImage": "https://example.com/images/og1.jpg"
     }
+  ],
+  "pagesWithoutImages": [
+    {
+      "url": "https://example.com/page2",
+      "ogImage": null
+    }
+  ],
+  "unprocessedPages": [
+    "https://example.com/page51",
+    "https://example.com/page52"
   ]
 }
 ```

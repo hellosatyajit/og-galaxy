@@ -10,9 +10,13 @@ A minimal website that displays Open Graph images from all pages of any domain i
 - **Design**: Dark, minimal, modern UI with gradient accents
 - **Features**:
   - Domain input field
-  - Real-time stats (Total URLs, Processed, Found)
-  - Responsive image grid
+  - Real-time stats (Found, Not Found, Unprocessed, Total)
+  - Three-section display:
+    - Pages with OG images (responsive grid)
+    - Pages without OG images (scrollable list)
+    - Unprocessed pages (scrollable list)
   - Shimmer loading animations
+  - Color-coded status indicators
   - Error handling with user-friendly messages
   - Responsive design for mobile/desktop
 
