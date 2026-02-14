@@ -135,16 +135,23 @@ app.post('/api/fetch-og-images', async (req, res) => {
     // Limit to first 50 URLs to avoid timeout
     const limitedUrls = urls.slice(0, 50);
 
-    // Fetch OG images concurrently
-    const results = await Promise.all(
-      limitedUrls.map(async (url) => {
-        const ogImage = await getOgImage(url);
-        return {
-          url,
-          ogImage
-        };
-      })
-    );
+    // Fetch OG images in batches to avoid overwhelming servers
+    const batchSize = 10;
+    const results = [];
+    
+    for (let i = 0; i < limitedUrls.length; i += batchSize) {
+      const batch = limitedUrls.slice(i, i + batchSize);
+      const batchResults = await Promise.all(
+        batch.map(async (url) => {
+          const ogImage = await getOgImage(url);
+          return {
+            url,
+            ogImage
+          };
+        })
+      );
+      results.push(...batchResults);
+    }
 
     // Filter out pages without OG images
     const pagesWithImages = results.filter(r => r.ogImage);
