@@ -159,7 +159,18 @@
       width: 100%;
       aspect-ratio: 1.91 / 1;
       object-fit: cover;
-      background: #0a0a0a;
+      background: linear-gradient(90deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    .card-image.loaded {
+      animation: none;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
     }
 
     .card-content {
@@ -317,19 +328,27 @@
           data.pages.forEach(page => {
             const card = document.createElement('div');
             card.className = 'card';
-            card.innerHTML = `
-              <img 
-                src="${page.ogImage}" 
-                alt="OG Image" 
-                class="card-image"
-                onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22210%22%3E%3Crect fill=%22%23222%22 width=%22400%22 height=%22210%22/%3E%3Ctext fill=%22%23666%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22sans-serif%22 font-size=%2214%22%3EImage unavailable%3C/text%3E%3C/svg%3E'"
-              >
-              <div class="card-content">
-                <div class="card-title">
-                  <a href="${page.url}" target="_blank" rel="noopener">${page.url}</a>
-                </div>
+            
+            const img = document.createElement('img');
+            img.src = page.ogImage;
+            img.alt = 'OG Image';
+            img.className = 'card-image';
+            img.onload = () => img.classList.add('loaded');
+            img.onerror = () => {
+              img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='210'%3E%3Crect fill='%23222' width='400' height='210'/%3E%3Ctext fill='%23666' x='50%25' y='50%25' text-anchor='middle' dy='.3em' font-family='sans-serif' font-size='14'%3EImage unavailable%3C/text%3E%3C/svg%3E";
+              img.classList.add('loaded');
+            };
+
+            const content = document.createElement('div');
+            content.className = 'card-content';
+            content.innerHTML = `
+              <div class="card-title">
+                <a href="${page.url}" target="_blank" rel="noopener">${page.url}</a>
               </div>
             `;
+
+            card.appendChild(img);
+            card.appendChild(content);
             gridDiv.appendChild(card);
           });
         }
