@@ -294,7 +294,7 @@
       showStatus('Fetching sitemap and analyzing pages...');
 
       try {
-        const response = await fetch('http://localhost:3000/api/fetch-og-images', {
+        const response = await fetch('/api/fetch-og-images', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
