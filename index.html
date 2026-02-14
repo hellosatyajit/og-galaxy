@@ -116,6 +116,18 @@
       color: #667eea;
     }
 
+    .stat.success .stat-value {
+      color: #4ade80;
+    }
+
+    .stat.warning .stat-value {
+      color: #fbbf24;
+    }
+
+    .stat.info .stat-value {
+      color: #60a5fa;
+    }
+
     .status {
       padding: 1rem;
       border-radius: 8px;
@@ -135,11 +147,48 @@
       color: #dc6a6a;
     }
 
+    .section {
+      margin-top: 3rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .section-count {
+      padding: 0.25rem 0.75rem;
+      background: #667eea;
+      color: white;
+      border-radius: 12px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .section-count.success {
+      background: #4ade80;
+    }
+
+    .section-count.warning {
+      background: #fbbf24;
+    }
+
+    .section-count.info {
+      background: #60a5fa;
+    }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: 1.5rem;
-      margin-top: 2rem;
     }
 
     .card {
@@ -208,6 +257,92 @@
       to { transform: rotate(360deg); }
     }
 
+    .url-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .url-item {
+      padding: 0.875rem 1rem;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: border-color 0.2s;
+    }
+
+    .url-item:hover {
+      border-color: #667eea;
+    }
+
+    .url-item-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .url-item-link {
+      flex: 1;
+      color: #aaa;
+      text-decoration: none;
+      font-size: 0.875rem;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    .url-item-link:hover {
+      color: #667eea;
+    }
+
+    .collapsible {
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 0.5rem;
+    }
+
+    .collapsible::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .collapsible::-webkit-scrollbar-track {
+      background: #1a1a1a;
+      border-radius: 4px;
+    }
+
+    .collapsible::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 4px;
+    }
+
+    .collapsible::-webkit-scrollbar-thumb:hover {
+      background: #444;
+    }
+
+    .expand-btn {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      background: transparent;
+      border: 1px solid #333;
+      color: #888;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .expand-btn:hover {
+      border-color: #667eea;
+      color: #667eea;
+      background: transparent;
+    }
+
     .hidden {
       display: none;
     }
@@ -223,6 +358,15 @@
 
       .grid {
         grid-template-columns: 1fr;
+      }
+
+      .stats {
+        gap: 1rem;
+      }
+
+      .stat {
+        flex: 1;
+        min-width: 0;
       }
     }
   </style>
@@ -247,7 +391,30 @@
     </div>
 
     <div id="stats" class="stats hidden"></div>
-    <div id="grid" class="grid"></div>
+    
+    <div id="withImagesSection" class="section hidden">
+      <div class="section-header">
+        <h2 class="section-title">Pages with OG Images</h2>
+        <span id="withImagesCount" class="section-count success">0</span>
+      </div>
+      <div id="withImagesGrid" class="grid"></div>
+    </div>
+
+    <div id="withoutImagesSection" class="section hidden">
+      <div class="section-header">
+        <h2 class="section-title">Pages without OG Images</h2>
+        <span id="withoutImagesCount" class="section-count warning">0</span>
+      </div>
+      <div id="withoutImagesList" class="url-list collapsible"></div>
+    </div>
+
+    <div id="unprocessedSection" class="section hidden">
+      <div class="section-header">
+        <h2 class="section-title">Unprocessed Pages</h2>
+        <span id="unprocessedCount" class="section-count info">0</span>
+      </div>
+      <div id="unprocessedList" class="url-list collapsible"></div>
+    </div>
   </div>
 
   <script>
@@ -255,7 +422,19 @@
     const fetchBtn = document.getElementById('fetchBtn');
     const statusDiv = document.getElementById('status');
     const statsDiv = document.getElementById('stats');
-    const gridDiv = document.getElementById('grid');
+    
+    // Section elements
+    const withImagesSection = document.getElementById('withImagesSection');
+    const withImagesCount = document.getElementById('withImagesCount');
+    const withImagesGrid = document.getElementById('withImagesGrid');
+    
+    const withoutImagesSection = document.getElementById('withoutImagesSection');
+    const withoutImagesCount = document.getElementById('withoutImagesCount');
+    const withoutImagesList = document.getElementById('withoutImagesList');
+    
+    const unprocessedSection = document.getElementById('unprocessedSection');
+    const unprocessedCount = document.getElementById('unprocessedCount');
+    const unprocessedList = document.getElementById('unprocessedList');
 
     domainInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
@@ -275,20 +454,44 @@
 
     function showStats(data) {
       statsDiv.innerHTML = `
+        <div class="stat success">
+          <div class="stat-label">OG Images Found</div>
+          <div class="stat-value">${data.found}</div>
+        </div>
+        <div class="stat warning">
+          <div class="stat-label">Not Found</div>
+          <div class="stat-value">${data.notFound}</div>
+        </div>
+        <div class="stat info">
+          <div class="stat-label">Unprocessed</div>
+          <div class="stat-value">${data.unprocessed}</div>
+        </div>
         <div class="stat">
           <div class="stat-label">Total URLs</div>
           <div class="stat-value">${data.total}</div>
         </div>
-        <div class="stat">
-          <div class="stat-label">Processed</div>
-          <div class="stat-value">${data.processed}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">OG Images Found</div>
-          <div class="stat-value">${data.found}</div>
-        </div>
       `;
       statsDiv.classList.remove('hidden');
+    }
+
+    function createUrlItem(url, icon = '📄') {
+      const item = document.createElement('div');
+      item.className = 'url-item';
+      
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'url-item-icon';
+      iconSpan.textContent = icon;
+      
+      const link = document.createElement('a');
+      link.className = 'url-item-link';
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = url;
+      
+      item.appendChild(iconSpan);
+      item.appendChild(link);
+      return item;
     }
 
     async function fetchOgImages() {
@@ -300,8 +503,16 @@
       }
 
       fetchBtn.disabled = true;
-      gridDiv.innerHTML = '';
+      
+      // Reset all sections
       statsDiv.classList.add('hidden');
+      withImagesSection.classList.add('hidden');
+      withoutImagesSection.classList.add('hidden');
+      unprocessedSection.classList.add('hidden');
+      withImagesGrid.innerHTML = '';
+      withoutImagesList.innerHTML = '';
+      unprocessedList.innerHTML = '';
+      
       showStatus('Fetching sitemap and analyzing pages...');
 
       try {
@@ -322,10 +533,12 @@
         hideStatus();
         showStats(data);
 
-        if (data.pages.length === 0) {
-          gridDiv.innerHTML = '<p style="color: #888; grid-column: 1/-1; text-align: center; padding: 2rem;">No Open Graph images found on this site.</p>';
-        } else {
-          data.pages.forEach(page => {
+        // Show pages with OG images
+        if (data.pagesWithImages && data.pagesWithImages.length > 0) {
+          withImagesCount.textContent = data.found;
+          withImagesSection.classList.remove('hidden');
+          
+          data.pagesWithImages.forEach(page => {
             const card = document.createElement('div');
             card.className = 'card';
             
@@ -349,14 +562,38 @@
 
             card.appendChild(img);
             card.appendChild(content);
-            gridDiv.appendChild(card);
+            withImagesGrid.appendChild(card);
           });
+        }
+
+        // Show pages without OG images
+        if (data.pagesWithoutImages && data.pagesWithoutImages.length > 0) {
+          withoutImagesCount.textContent = data.notFound;
+          withoutImagesSection.classList.remove('hidden');
+          
+          data.pagesWithoutImages.forEach(page => {
+            withoutImagesList.appendChild(createUrlItem(page.url, '⚠️'));
+          });
+        }
+
+        // Show unprocessed pages
+        if (data.unprocessedPages && data.unprocessedPages.length > 0) {
+          unprocessedCount.textContent = data.unprocessed;
+          unprocessedSection.classList.remove('hidden');
+          
+          data.unprocessedPages.forEach(url => {
+            unprocessedList.appendChild(createUrlItem(url, '⏸️'));
+          });
+        }
+
+        // Show message if nothing found at all
+        if (data.total === 0) {
+          showStatus('No URLs found in sitemap', 'error');
         }
 
       } catch (error) {
         showStatus(error.message, 'error');
         statsDiv.classList.add('hidden');
-        gridDiv.innerHTML = '';
       } finally {
         fetchBtn.disabled = false;
       }

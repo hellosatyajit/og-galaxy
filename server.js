@@ -134,6 +134,7 @@ app.post('/api/fetch-og-images', async (req, res) => {
 
     // Limit to first 50 URLs to avoid timeout
     const limitedUrls = urls.slice(0, 50);
+    const unprocessedUrls = urls.slice(50);
 
     // Fetch OG images in batches to avoid overwhelming servers
     const batchSize = 10;
@@ -153,15 +154,20 @@ app.post('/api/fetch-og-images', async (req, res) => {
       results.push(...batchResults);
     }
 
-    // Filter out pages without OG images
+    // Separate pages with and without OG images
     const pagesWithImages = results.filter(r => r.ogImage);
+    const pagesWithoutImages = results.filter(r => !r.ogImage);
 
     res.json({
       domain: cleanDomain,
       total: urls.length,
       processed: limitedUrls.length,
       found: pagesWithImages.length,
-      pages: pagesWithImages
+      notFound: pagesWithoutImages.length,
+      unprocessed: unprocessedUrls.length,
+      pagesWithImages: pagesWithImages,
+      pagesWithoutImages: pagesWithoutImages,
+      unprocessedPages: unprocessedUrls
     });
 
   } catch (error) {
