@@ -158,6 +158,12 @@
       margin-bottom: 1.5rem;
     }
 
+    .section-action-btn {
+      margin-left: auto;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+    }
+
     .section-title {
       font-size: 1.25rem;
       font-weight: 600;
@@ -412,6 +418,7 @@
       <div class="section-header">
         <h2 class="section-title">Unprocessed Pages</h2>
         <span id="unprocessedCount" class="section-count info">0</span>
+        <button id="processUnprocessedBtn" class="section-action-btn hidden" onclick="processUnprocessedPages()">Process Unprocessed</button>
       </div>
       <div id="unprocessedList" class="url-list collapsible"></div>
     </div>
@@ -435,6 +442,12 @@
     const unprocessedSection = document.getElementById('unprocessedSection');
     const unprocessedCount = document.getElementById('unprocessedCount');
     const unprocessedList = document.getElementById('unprocessedList');
+    const processUnprocessedBtn = document.getElementById('processUnprocessedBtn');
+
+    const UNPROCESSED_BATCH_LIMIT = 50;
+    let pagesWithImagesState = [];
+    let pagesWithoutImagesState = [];
+    let unprocessedPagesState = [];
 
     domainInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
@@ -494,6 +507,168 @@
       return item;
     }
 
+    function createImageCard(page) {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const img = document.createElement('img');
+      img.src = page.ogImage;
+      img.alt = 'OG Image';
+      img.className = 'card-image';
+      img.onload = () => img.classList.add('loaded');
+      img.onerror = () => {
+        img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='210'%3E%3Crect fill='%23222' width='400' height='210'/%3E%3Ctext fill='%23666' x='50%25' y='50%25' text-anchor='middle' dy='.3em' font-family='sans-serif' font-size='14'%3EImage unavailable%3C/text%3E%3C/svg%3E";
+        img.classList.add('loaded');
+      };
+
+      const content = document.createElement('div');
+      content.className = 'card-content';
+      content.innerHTML = `
+        <div class="card-title">
+          <a href="${page.url}" target="_blank" rel="noopener">${page.url}</a>
+        </div>
+      `;
+
+      card.appendChild(img);
+      card.appendChild(content);
+      return card;
+    }
+
+    function resetSections() {
+      statsDiv.classList.add('hidden');
+      withImagesSection.classList.add('hidden');
+      withoutImagesSection.classList.add('hidden');
+      unprocessedSection.classList.add('hidden');
+      withImagesGrid.innerHTML = '';
+      withoutImagesList.innerHTML = '';
+      unprocessedList.innerHTML = '';
+      withImagesCount.textContent = '0';
+      withoutImagesCount.textContent = '0';
+      unprocessedCount.textContent = '0';
+      processUnprocessedBtn.classList.add('hidden');
+      processUnprocessedBtn.disabled = false;
+    }
+
+    function showStatsFromState() {
+      const found = pagesWithImagesState.length;
+      const notFound = pagesWithoutImagesState.length;
+      const unprocessed = unprocessedPagesState.length;
+
+      showStats({
+        found,
+        notFound,
+        unprocessed,
+        total: found + notFound + unprocessed
+      });
+    }
+
+    function getUniquePages(existingPages, incomingPages) {
+      const existingUrls = new Set(existingPages.map(page => page.url));
+      return incomingPages.filter(page => {
+        if (!page || !page.url || existingUrls.has(page.url)) {
+          return false;
+        }
+
+        existingUrls.add(page.url);
+        return true;
+      });
+    }
+
+    function appendPagesWithImages(pages) {
+      if (!pages || pages.length === 0) {
+        return;
+      }
+
+      withImagesSection.classList.remove('hidden');
+      pages.forEach(page => {
+        withImagesGrid.appendChild(createImageCard(page));
+      });
+
+      withImagesCount.textContent = pagesWithImagesState.length;
+    }
+
+    function appendPagesWithoutImages(pages) {
+      if (!pages || pages.length === 0) {
+        return;
+      }
+
+      withoutImagesSection.classList.remove('hidden');
+      pages.forEach(page => {
+        withoutImagesList.appendChild(createUrlItem(page.url, '⚠️'));
+      });
+
+      withoutImagesCount.textContent = pagesWithoutImagesState.length;
+    }
+
+    function renderUnprocessedPages() {
+      unprocessedList.innerHTML = '';
+
+      if (unprocessedPagesState.length === 0) {
+        unprocessedSection.classList.add('hidden');
+        processUnprocessedBtn.classList.add('hidden');
+        unprocessedCount.textContent = '0';
+        return;
+      }
+
+      unprocessedSection.classList.remove('hidden');
+      processUnprocessedBtn.classList.remove('hidden');
+      unprocessedCount.textContent = unprocessedPagesState.length;
+
+      unprocessedPagesState.forEach(url => {
+        unprocessedList.appendChild(createUrlItem(url, '⏸️'));
+      });
+    }
+
+    async function processUnprocessedPages() {
+      if (unprocessedPagesState.length === 0) {
+        return;
+      }
+
+      const processCount = Math.min(UNPROCESSED_BATCH_LIMIT, unprocessedPagesState.length);
+      processUnprocessedBtn.disabled = true;
+      fetchBtn.disabled = true;
+      showStatus(`Processing ${processCount} unprocessed pages...`);
+
+      try {
+        const response = await fetch('/api/process-unprocessed', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            urls: unprocessedPagesState,
+            limit: UNPROCESSED_BATCH_LIMIT
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to process unprocessed pages');
+        }
+
+        const uniqueWithImages = getUniquePages(pagesWithImagesState, data.pagesWithImages || []);
+        const uniqueWithoutImages = getUniquePages(pagesWithoutImagesState, data.pagesWithoutImages || []);
+
+        pagesWithImagesState.push(...uniqueWithImages);
+        pagesWithoutImagesState.push(...uniqueWithoutImages);
+        unprocessedPagesState = Array.isArray(data.unprocessedPages)
+          ? data.unprocessedPages.filter(url => typeof url === 'string' && url.trim())
+          : [];
+
+        appendPagesWithImages(uniqueWithImages);
+        appendPagesWithoutImages(uniqueWithoutImages);
+        renderUnprocessedPages();
+        showStatsFromState();
+        hideStatus();
+      } catch (error) {
+        showStatus(error.message, 'error');
+      } finally {
+        processUnprocessedBtn.disabled = false;
+        fetchBtn.disabled = false;
+      }
+    }
+
     async function fetchOgImages() {
       const domain = domainInput.value.trim();
       
@@ -504,14 +679,10 @@
 
       fetchBtn.disabled = true;
       
-      // Reset all sections
-      statsDiv.classList.add('hidden');
-      withImagesSection.classList.add('hidden');
-      withoutImagesSection.classList.add('hidden');
-      unprocessedSection.classList.add('hidden');
-      withImagesGrid.innerHTML = '';
-      withoutImagesList.innerHTML = '';
-      unprocessedList.innerHTML = '';
+      pagesWithImagesState = [];
+      pagesWithoutImagesState = [];
+      unprocessedPagesState = [];
+      resetSections();
       
       showStatus('Fetching sitemap and analyzing pages...');
 
@@ -530,61 +701,17 @@
           throw new Error(data.error || 'Failed to fetch OG images');
         }
 
+        pagesWithImagesState = getUniquePages([], data.pagesWithImages || []);
+        pagesWithoutImagesState = getUniquePages([], data.pagesWithoutImages || []);
+        unprocessedPagesState = Array.isArray(data.unprocessedPages)
+          ? data.unprocessedPages.filter(url => typeof url === 'string' && url.trim())
+          : [];
+
+        showStatsFromState();
+        appendPagesWithImages(pagesWithImagesState);
+        appendPagesWithoutImages(pagesWithoutImagesState);
+        renderUnprocessedPages();
         hideStatus();
-        showStats(data);
-
-        // Show pages with OG images
-        if (data.pagesWithImages && data.pagesWithImages.length > 0) {
-          withImagesCount.textContent = data.found;
-          withImagesSection.classList.remove('hidden');
-          
-          data.pagesWithImages.forEach(page => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            
-            const img = document.createElement('img');
-            img.src = page.ogImage;
-            img.alt = 'OG Image';
-            img.className = 'card-image';
-            img.onload = () => img.classList.add('loaded');
-            img.onerror = () => {
-              img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='210'%3E%3Crect fill='%23222' width='400' height='210'/%3E%3Ctext fill='%23666' x='50%25' y='50%25' text-anchor='middle' dy='.3em' font-family='sans-serif' font-size='14'%3EImage unavailable%3C/text%3E%3C/svg%3E";
-              img.classList.add('loaded');
-            };
-
-            const content = document.createElement('div');
-            content.className = 'card-content';
-            content.innerHTML = `
-              <div class="card-title">
-                <a href="${page.url}" target="_blank" rel="noopener">${page.url}</a>
-              </div>
-            `;
-
-            card.appendChild(img);
-            card.appendChild(content);
-            withImagesGrid.appendChild(card);
-          });
-        }
-
-        // Show pages without OG images
-        if (data.pagesWithoutImages && data.pagesWithoutImages.length > 0) {
-          withoutImagesCount.textContent = data.notFound;
-          withoutImagesSection.classList.remove('hidden');
-          
-          data.pagesWithoutImages.forEach(page => {
-            withoutImagesList.appendChild(createUrlItem(page.url, '⚠️'));
-          });
-        }
-
-        // Show unprocessed pages
-        if (data.unprocessedPages && data.unprocessedPages.length > 0) {
-          unprocessedCount.textContent = data.unprocessed;
-          unprocessedSection.classList.remove('hidden');
-          
-          data.unprocessedPages.forEach(url => {
-            unprocessedList.appendChild(createUrlItem(url, '⏸️'));
-          });
-        }
 
         // Show message if nothing found at all
         if (data.total === 0) {

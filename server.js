@@ -8,6 +8,9 @@ import { promisify } from 'util';
 const app = express();
 const PORT = process.env.PORT || 3000;
 const parseXml = promisify(parseString);
+const DEFAULT_PROCESS_LIMIT = 50;
+const MAX_PROCESS_LIMIT = 200;
+const PROCESS_BATCH_SIZE = 10;
 
 app.use(cors());
 app.use(express.json());
@@ -40,6 +43,46 @@ async function getOgImage(url) {
     console.error(`Error fetching ${url}:`, error.message);
     return null;
   }
+}
+
+function sanitizeUrls(urls) {
+  if (!Array.isArray(urls)) {
+    return [];
+  }
+
+  return urls
+    .filter(url => typeof url === 'string' && url.trim())
+    .map(url => url.trim());
+}
+
+function getBatchLimit(limit, defaultLimit = DEFAULT_PROCESS_LIMIT) {
+  const parsedLimit = Number.parseInt(limit, 10);
+
+  if (!Number.isFinite(parsedLimit)) {
+    return defaultLimit;
+  }
+
+  return Math.max(1, Math.min(parsedLimit, MAX_PROCESS_LIMIT));
+}
+
+async function processUrls(urls) {
+  const results = [];
+
+  for (let i = 0; i < urls.length; i += PROCESS_BATCH_SIZE) {
+    const batch = urls.slice(i, i + PROCESS_BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(async (url) => {
+        const ogImage = await getOgImage(url);
+        return {
+          url,
+          ogImage
+        };
+      })
+    );
+    results.push(...batchResults);
+  }
+
+  return results;
 }
 
 // Helper function to get sitemap URLs
@@ -132,27 +175,12 @@ app.post('/api/fetch-og-images', async (req, res) => {
     const urls = await getSitemapUrls(cleanDomain);
     console.log(`Found ${urls.length} URLs in sitemap`);
 
-    // Limit to first 50 URLs to avoid timeout
-    const limitedUrls = urls.slice(0, 50);
-    const unprocessedUrls = urls.slice(50);
+    // Limit to first N URLs to avoid timeout
+    const limitedUrls = urls.slice(0, DEFAULT_PROCESS_LIMIT);
+    const unprocessedUrls = urls.slice(DEFAULT_PROCESS_LIMIT);
 
     // Fetch OG images in batches to avoid overwhelming servers
-    const batchSize = 10;
-    const results = [];
-    
-    for (let i = 0; i < limitedUrls.length; i += batchSize) {
-      const batch = limitedUrls.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(async (url) => {
-          const ogImage = await getOgImage(url);
-          return {
-            url,
-            ogImage
-          };
-        })
-      );
-      results.push(...batchResults);
-    }
+    const results = await processUrls(limitedUrls);
 
     // Separate pages with and without OG images
     const pagesWithImages = results.filter(r => r.ogImage);
@@ -174,6 +202,41 @@ app.post('/api/fetch-og-images', async (req, res) => {
     console.error('Error:', error);
     res.status(500).json({ 
       error: error.message || 'Failed to fetch OG images'
+    });
+  }
+});
+
+// API endpoint to process additional unprocessed URLs in batches
+app.post('/api/process-unprocessed', async (req, res) => {
+  try {
+    const { urls, limit } = req.body;
+    const sanitizedUrls = sanitizeUrls(urls);
+
+    if (sanitizedUrls.length === 0) {
+      return res.status(400).json({ error: 'URLs are required' });
+    }
+
+    const batchLimit = getBatchLimit(limit);
+    const urlsToProcess = sanitizedUrls.slice(0, batchLimit);
+    const remainingUrls = sanitizedUrls.slice(batchLimit);
+    const results = await processUrls(urlsToProcess);
+
+    const pagesWithImages = results.filter(result => result.ogImage);
+    const pagesWithoutImages = results.filter(result => !result.ogImage);
+
+    res.json({
+      processed: urlsToProcess.length,
+      found: pagesWithImages.length,
+      notFound: pagesWithoutImages.length,
+      unprocessed: remainingUrls.length,
+      pagesWithImages,
+      pagesWithoutImages,
+      unprocessedPages: remainingUrls
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({
+      error: error.message || 'Failed to process unprocessed pages'
     });
   }
 });
