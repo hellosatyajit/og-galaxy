@@ -37,7 +37,6 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      padding: 2.5rem 1rem 4rem;
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
       color-scheme: light;
@@ -46,6 +45,8 @@
     .container {
       max-width: 1120px;
       margin: 0 auto;
+      min-height: 100svh;
+      padding: 2.5rem 1rem 4rem;
     }
 
     h1 {
@@ -404,7 +405,7 @@
     .site-footer {
       max-width: 1120px;
       margin: 2.5rem auto 0;
-      padding-top: 1rem;
+      padding: 1rem;
       border-top: 1px solid var(--border);
       color: var(--text-muted);
       font-size: 0.9rem;
@@ -422,7 +423,7 @@
     }
 
     @media (max-width: 640px) {
-      body {
+      .container {
         padding-top: 1.5rem;
       }
 
