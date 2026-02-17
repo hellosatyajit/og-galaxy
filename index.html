@@ -401,6 +401,26 @@
       display: none;
     }
 
+    .site-footer {
+      max-width: 1120px;
+      margin: 2.5rem auto 0;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    .site-footer a {
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .site-footer a:hover {
+      text-decoration: underline;
+    }
+
     @media (max-width: 640px) {
       body {
         padding-top: 1.5rem;
@@ -424,6 +444,11 @@
 
       .grid {
         grid-template-columns: 1fr;
+      }
+
+      .site-footer {
+        margin-top: 2rem;
+        font-size: 0.86rem;
       }
     }
   </style>
@@ -474,6 +499,11 @@
       <div id="unprocessedList" class="url-list collapsible"></div>
     </div>
   </div>
+
+  <footer class="site-footer">
+    Built by <a href="https://satyajit.xyz" target="_blank" rel="noopener">Satyajit</a> at
+    <a href="https://clueless.builders" target="_blank" rel="noopener">Clueless Builders</a>
+  </footer>
 
   <script>
     const domainInput = document.getElementById('domainInput');
