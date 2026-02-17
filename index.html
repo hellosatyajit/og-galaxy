@@ -464,7 +464,7 @@
         <input 
           type="text" 
           id="domainInput" 
-          placeholder="Enter domain (e.g., example.com)"
+          placeholder="Enter domain or sitemap URL (e.g., example.com or https://example.com/sitemap.xml)"
           autocomplete="off"
         >
         <button id="fetchBtn" onclick="fetchOgImages()">Explore</button>
@@ -755,7 +755,7 @@
       const domain = domainInput.value.trim();
       
       if (!domain) {
-        showStatus('Please enter a domain', 'error');
+        showStatus('Please enter a domain or sitemap URL', 'error');
         return;
       }
 
