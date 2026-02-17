@@ -4,6 +4,7 @@ import { load } from 'cheerio';
 import { promisify } from 'util';
 
 const parseXml = promisify(parseString);
+const SITEMAP_PATH_CANDIDATES = ['/sitemap.xml', '/sitemap_index.xml'];
 
 // Helper function to extract OG image from HTML
 async function getOgImage(url) {
@@ -34,57 +35,160 @@ async function getOgImage(url) {
   }
 }
 
-// Helper function to get sitemap URLs
-async function getSitemapUrls(domain) {
-  const sitemapUrls = [
-    `https://${domain}/sitemap.xml`,
-    `https://${domain}/sitemap_index.xml`,
-    `http://${domain}/sitemap.xml`,
-    `http://${domain}/sitemap_index.xml`
-  ];
+function normalizeInput(input) {
+  return typeof input === 'string' ? input.trim() : '';
+}
 
-  for (const sitemapUrl of sitemapUrls) {
-    try {
-      const response = await fetch(sitemapUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; OGGalaxyBot/1.0)'
-        },
-        timeout: 10000
-      });
+function parseInputUrl(input) {
+  const normalizedInput = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//.test(input)
+    ? input
+    : `https://${input}`;
 
-      if (response.ok) {
-        const xml = await response.text();
-        return await parseSitemap(xml, domain);
-      }
-    } catch (error) {
-      continue;
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(normalizedInput);
+  } catch (error) {
+    throw new Error('Please enter a valid domain or sitemap URL');
+  }
+
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    throw new Error('Please use an HTTP(S) domain or sitemap URL');
+  }
+
+  return parsedUrl;
+}
+
+function isLikelySitemapPath(pathname = '') {
+  if (!pathname || pathname === '/') {
+    return false;
+  }
+
+  const lowerPath = pathname.toLowerCase();
+  return (
+    lowerPath.includes('sitemap') ||
+    lowerPath.endsWith('.xml') ||
+    lowerPath.endsWith('.xml.gz')
+  );
+}
+
+function getProtocolCandidates(protocol) {
+  if (protocol === 'http:') {
+    return ['http:', 'https:'];
+  }
+
+  if (protocol === 'https:') {
+    return ['https:', 'http:'];
+  }
+
+  return ['https:', 'http:'];
+}
+
+function buildSitemapCandidateUrls(inputUrl) {
+  const candidates = [];
+  const seen = new Set();
+  const protocols = getProtocolCandidates(inputUrl.protocol);
+  const addCandidate = (candidateUrl) => {
+    if (!seen.has(candidateUrl)) {
+      seen.add(candidateUrl);
+      candidates.push(candidateUrl);
+    }
+  };
+
+  if (isLikelySitemapPath(inputUrl.pathname)) {
+    addCandidate(inputUrl.toString());
+
+    for (const protocol of protocols) {
+      const protocolVariant = new URL(inputUrl.toString());
+      protocolVariant.protocol = protocol;
+      addCandidate(protocolVariant.toString());
     }
   }
 
-  throw new Error('No sitemap found');
+  for (const protocol of protocols) {
+    for (const sitemapPath of SITEMAP_PATH_CANDIDATES) {
+      const sitemapUrl = new URL(sitemapPath, `${protocol}//${inputUrl.host}`).toString();
+      addCandidate(sitemapUrl);
+    }
+  }
+
+  return candidates;
+}
+
+async function fetchSitemapDocument(sitemapUrl) {
+  const response = await fetch(sitemapUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; OGGalaxyBot/1.0)'
+    },
+    timeout: 10000
+  });
+
+  if (!response.ok) {
+    throw new Error(`Sitemap request failed (${response.status})`);
+  }
+
+  return response.text();
+}
+
+// Helper function to get sitemap URLs
+async function getSitemapUrls(input) {
+  const normalizedInput = normalizeInput(input);
+
+  if (!normalizedInput) {
+    throw new Error('Domain or sitemap URL is required');
+  }
+
+  const inputUrl = parseInputUrl(normalizedInput);
+  const sitemapCandidateUrls = buildSitemapCandidateUrls(inputUrl);
+  let lastError = new Error('No sitemap found');
+
+  for (const sitemapUrl of sitemapCandidateUrls) {
+    try {
+      const xml = await fetchSitemapDocument(sitemapUrl);
+      const urls = await parseSitemap(xml, new Set([sitemapUrl]));
+
+      return {
+        urls,
+        cleanDomain: inputUrl.host || inputUrl.hostname,
+        resolvedSitemapUrl: sitemapUrl
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(`No sitemap found (${lastError.message})`);
 }
 
 // Parse sitemap XML
-async function parseSitemap(xml, domain) {
+async function parseSitemap(xml, visitedSitemaps = new Set()) {
   try {
     const result = await parseXml(xml);
-    const urls = [];
+    const urls = new Set();
+    const hasSitemapIndex = Boolean(result.sitemapindex);
+    const hasUrlset = Boolean(result.urlset);
+
+    if (!hasSitemapIndex && !hasUrlset) {
+      throw new Error('Invalid sitemap format');
+    }
 
     // Handle sitemap index (contains links to other sitemaps)
-    if (result.sitemapindex) {
+    if (hasSitemapIndex) {
       const sitemaps = result.sitemapindex.sitemap || [];
       for (const sitemap of sitemaps) {
-        const sitemapUrl = sitemap.loc[0];
+        const sitemapUrl = typeof sitemap?.loc?.[0] === 'string'
+          ? sitemap.loc[0].trim()
+          : '';
+
+        if (!sitemapUrl || visitedSitemaps.has(sitemapUrl)) {
+          continue;
+        }
+
+        visitedSitemaps.add(sitemapUrl);
+
         try {
-          const response = await fetch(sitemapUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; OGGalaxyBot/1.0)'
-            },
-            timeout: 10000
-          });
-          const subXml = await response.text();
-          const subUrls = await parseSitemap(subXml, domain);
-          urls.push(...subUrls);
+          const subXml = await fetchSitemapDocument(sitemapUrl);
+          const subUrls = await parseSitemap(subXml, visitedSitemaps);
+          subUrls.forEach((url) => urls.add(url));
         } catch (error) {
           console.error(`Error fetching sub-sitemap ${sitemapUrl}:`, error.message);
         }
@@ -92,16 +196,20 @@ async function parseSitemap(xml, domain) {
     }
 
     // Handle regular sitemap
-    if (result.urlset) {
+    if (hasUrlset) {
       const urlEntries = result.urlset.url || [];
       for (const entry of urlEntries) {
-        if (entry.loc && entry.loc[0]) {
-          urls.push(entry.loc[0]);
+        const pageUrl = typeof entry?.loc?.[0] === 'string'
+          ? entry.loc[0].trim()
+          : '';
+
+        if (pageUrl) {
+          urls.add(pageUrl);
         }
       }
     }
 
-    return urls;
+    return Array.from(urls);
   } catch (error) {
     throw new Error('Failed to parse sitemap: ' + error.message);
   }
@@ -130,18 +238,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { domain } = req.body;
+    const { domain, input } = req.body || {};
+    const submittedInput = normalizeInput(domain || input);
 
-    if (!domain) {
-      return res.status(400).json({ error: 'Domain is required' });
+    if (!submittedInput) {
+      return res.status(400).json({ error: 'Domain or sitemap URL is required' });
     }
 
-    // Clean domain (remove protocol if present)
-    const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
-
     // Get URLs from sitemap
-    console.log(`Fetching sitemap for ${cleanDomain}...`);
-    const urls = await getSitemapUrls(cleanDomain);
+    console.log(`Fetching sitemap for ${submittedInput}...`);
+    const { urls, cleanDomain, resolvedSitemapUrl } = await getSitemapUrls(submittedInput);
     console.log(`Found ${urls.length} URLs in sitemap`);
 
     // Limit to first 50 URLs to avoid timeout
@@ -172,6 +278,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({
       domain: cleanDomain,
+      sitemapUrl: resolvedSitemapUrl,
       total: urls.length,
       processed: limitedUrls.length,
       found: pagesWithImages.length,
