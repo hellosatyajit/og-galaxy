@@ -1,0 +1,36 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">OG Galaxy Open Graph Image</title>
+  <desc id="desc">Open Graph preview image for OG Galaxy.</desc>
+  <defs>
+    <linearGradient id="bgGradient" x1="40" y1="20" x2="1160" y2="610" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="ringGradient" x1="230" y1="130" x2="670" y2="570" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+
+  <circle cx="430" cy="315" r="176" stroke="url(#ringGradient)" stroke-width="36" opacity="0.95"/>
+  <circle cx="430" cy="315" r="98" stroke="#93c5fd" stroke-width="6" opacity="0.9"/>
+  <circle cx="430" cy="315" r="14" fill="#ffffff"/>
+
+  <rect x="706" y="120" width="360" height="54" rx="14" fill="#111827" fill-opacity="0.78" stroke="#334155"/>
+  <rect x="706" y="196" width="300" height="22" rx="10" fill="#334155" fill-opacity="0.8"/>
+  <rect x="706" y="232" width="252" height="22" rx="10" fill="#334155" fill-opacity="0.6"/>
+
+  <text x="690" y="326" fill="#f8fafc" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="82" font-weight="700" letter-spacing="-1.2">
+    OG Galaxy
+  </text>
+  <text x="690" y="380" fill="#cbd5e1" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="32" font-weight="500">
+    Open Graph Image Explorer
+  </text>
+  <text x="690" y="430" fill="#94a3b8" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="24">
+    og.satyajit.xyz
+  </text>
+
+  <rect x="60" y="548" width="1080" height="1" fill="#334155"/>
+</svg>
