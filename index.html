@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OG Galaxy - Open Graph Image Explorer</title>
-  <meta name="description" content="Explore Open Graph images across any website by scanning sitemap URLs and previewing pages with and without OG metadata.">
+  <meta name="description"
+    content="Explore Open Graph images across any website by scanning sitemap URLs and previewing pages with and without OG metadata.">
   <meta name="keywords" content="open graph, og:image, sitemap, seo, metadata, image preview">
   <meta name="author" content="Satyajit">
   <meta name="robots" content="index, follow">
@@ -38,7 +40,8 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -74,6 +77,13 @@
       color-scheme: light;
     }
 
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+    }
+
     .container {
       max-width: 1120px;
       margin: 0 auto;
@@ -90,7 +100,6 @@
 
     .subtitle {
       color: var(--text-muted);
-      margin-bottom: 1.8rem;
       font-size: 0.98rem;
     }
 
@@ -303,8 +312,13 @@
     }
 
     @keyframes shimmer {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
+      0% {
+        background-position: 200% 0;
+      }
+
+      100% {
+        background-position: -200% 0;
+      }
     }
 
     .card-content {
@@ -339,7 +353,9 @@
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     .url-list {
@@ -455,16 +471,18 @@
     }
 
     @media (max-width: 640px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+
       .container {
         padding-top: 1.5rem;
       }
 
       h1 {
         font-size: 1.9rem;
-      }
-
-      .subtitle {
-        margin-bottom: 1.2rem;
       }
 
       .input-section {
@@ -486,27 +504,33 @@
     }
   </style>
 </head>
+
 <body>
   <div class="container">
-    <h1>OG Galaxy</h1>
-    <p class="subtitle">Explore Open Graph images across any website</p>
+    <header>
+      <div>
+        <h1>OG Galaxy</h1>
+        <p class="subtitle">Explore Open Graph images across any website</p>
+      </div>
+      <a href="https://peerlist.io/hellosatyajit/project/og-galaxy" target="_blank" rel="noreferrer">
+        <img src="https://peerlist.io/api/v1/projects/embed/PRJHQ7M7GQR9GDB7P1BQOOJ7BJABMK?showUpvote=false&theme=light"
+          alt="OG Galaxy" style="width: auto; height: 72px;" />
+      </a>
+    </header>
 
     <div class="input-section">
       <div class="input-wrapper">
-        <input 
-          type="text" 
-          id="domainInput" 
+        <input type="text" id="domainInput"
           placeholder="Enter domain or sitemap URL (e.g., example.com or https://example.com/sitemap.xml)"
-          autocomplete="off"
-        >
+          autocomplete="off">
         <button id="fetchBtn" onclick="fetchOgImages()">Explore</button>
       </div>
-      
+
       <div id="status" class="hidden"></div>
     </div>
 
     <div id="stats" class="stats hidden"></div>
-    
+
     <div id="withImagesSection" class="section hidden">
       <div class="section-header">
         <h2 class="section-title">Pages with OG Images</h2>
@@ -527,7 +551,8 @@
       <div class="section-header">
         <h2 class="section-title">Unprocessed Pages</h2>
         <span id="unprocessedCount" class="section-count info">0</span>
-        <button id="processUnprocessedBtn" class="section-action-btn hidden" onclick="processUnprocessedPages()">Process More</button>
+        <button id="processUnprocessedBtn" class="section-action-btn hidden" onclick="processUnprocessedPages()">Process
+          More</button>
       </div>
       <div id="unprocessedList" class="url-list collapsible"></div>
     </div>
@@ -543,16 +568,16 @@
     const fetchBtn = document.getElementById('fetchBtn');
     const statusDiv = document.getElementById('status');
     const statsDiv = document.getElementById('stats');
-    
+
     // Section elements
     const withImagesSection = document.getElementById('withImagesSection');
     const withImagesCount = document.getElementById('withImagesCount');
     const withImagesGrid = document.getElementById('withImagesGrid');
-    
+
     const withoutImagesSection = document.getElementById('withoutImagesSection');
     const withoutImagesCount = document.getElementById('withoutImagesCount');
     const withoutImagesList = document.getElementById('withoutImagesList');
-    
+
     const unprocessedSection = document.getElementById('unprocessedSection');
     const unprocessedCount = document.getElementById('unprocessedCount');
     const unprocessedList = document.getElementById('unprocessedList');
@@ -612,18 +637,18 @@
     function createUrlItem(url, icon = '📄') {
       const item = document.createElement('div');
       item.className = 'url-item';
-      
+
       const iconSpan = document.createElement('span');
       iconSpan.className = 'url-item-icon';
       iconSpan.textContent = icon;
-      
+
       const link = document.createElement('a');
       link.className = 'url-item-link';
       link.href = url;
       link.target = '_blank';
       link.rel = 'noopener';
       link.textContent = url;
-      
+
       item.appendChild(iconSpan);
       item.appendChild(link);
       return item;
@@ -797,7 +822,7 @@
 
     async function fetchOgImages() {
       const domain = domainInput.value.trim();
-      
+
       if (!domain) {
         showStatus('Please enter a domain or sitemap URL', 'error');
         return;
@@ -809,12 +834,12 @@
         method: 'explore_button'
       });
       fetchBtn.disabled = true;
-      
+
       pagesWithImagesState = [];
       pagesWithoutImagesState = [];
       unprocessedPagesState = [];
       resetSections();
-      
+
       showStatus('Fetching sitemap and analyzing pages...');
 
       try {
@@ -858,4 +883,5 @@
     }
   </script>
 </body>
+
 </html>
