@@ -4,6 +4,38 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OG Galaxy - Open Graph Image Explorer</title>
+  <meta name="description" content="Explore Open Graph images across any website by scanning sitemap URLs and previewing pages with and without OG metadata.">
+  <meta name="keywords" content="open graph, og:image, sitemap, seo, metadata, image preview">
+  <meta name="author" content="Satyajit">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#111111">
+  <link rel="canonical" href="https://og.satyajit.xyz">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="OG Galaxy">
+  <meta property="og:title" content="OG Galaxy - Open Graph Image Explorer">
+  <meta property="og:description" content="Scan any sitemap and quickly find pages with missing Open Graph images.">
+  <meta property="og:url" content="https://og.satyajit.xyz">
+  <meta property="og:image" content="https://og.satyajit.xyz/og-image.svg">
+  <meta property="og:image:secure_url" content="https://og.satyajit.xyz/og-image.svg">
+  <meta property="og:image:type" content="image/svg+xml">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="OG Galaxy - Open Graph Image Explorer">
+  <meta name="twitter:description" content="Scan any sitemap and quickly find pages with missing Open Graph images.">
+  <meta name="twitter:image" content="https://og.satyajit.xyz/og-image.svg">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NY20EMGK5D"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-NY20EMGK5D', { send_page_view: false });
+    gtag('event', 'page_view', {
+      page_title: document.title,
+      page_location: window.location.href,
+      page_path: window.location.pathname
+    });
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -495,7 +527,7 @@
       <div class="section-header">
         <h2 class="section-title">Unprocessed Pages</h2>
         <span id="unprocessedCount" class="section-count info">0</span>
-        <button id="processUnprocessedBtn" class="section-action-btn hidden" onclick="processUnprocessedPages()">Process Unprocessed</button>
+        <button id="processUnprocessedBtn" class="section-action-btn hidden" onclick="processUnprocessedPages()">Process More</button>
       </div>
       <div id="unprocessedList" class="url-list collapsible"></div>
     </div>
@@ -530,6 +562,14 @@
     let pagesWithImagesState = [];
     let pagesWithoutImagesState = [];
     let unprocessedPagesState = [];
+
+    function trackAnalyticsEvent(eventName, params = {}) {
+      if (typeof window.gtag !== 'function') {
+        return;
+      }
+
+      window.gtag('event', eventName, params);
+    }
 
     domainInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
@@ -707,6 +747,10 @@
       }
 
       const processCount = Math.min(UNPROCESSED_BATCH_LIMIT, unprocessedPagesState.length);
+      trackAnalyticsEvent('process_more_click', {
+        remaining_results: unprocessedPagesState.length,
+        batch_limit: UNPROCESSED_BATCH_LIMIT
+      });
       processUnprocessedBtn.disabled = true;
       fetchBtn.disabled = true;
       showStatus(`Processing ${processCount} unprocessed pages...`);
@@ -759,6 +803,11 @@
         return;
       }
 
+      trackAnalyticsEvent('search', {
+        search_term: domain,
+        content_type: 'domain_or_sitemap',
+        method: 'explore_button'
+      });
       fetchBtn.disabled = true;
       
       pagesWithImagesState = [];
