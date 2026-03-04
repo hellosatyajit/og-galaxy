@@ -4,14 +4,48 @@ import { parseString } from 'xml2js';
 import { load } from 'cheerio';
 import cors from 'cors';
 import { promisify } from 'util';
+import pLimit from 'p-limit';
+import { body, query, validationResult } from 'express-validator';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const parseXml = promisify(parseString);
-const DEFAULT_PROCESS_LIMIT = 50;
-const MAX_PROCESS_LIMIT = 200;
-const PROCESS_BATCH_SIZE = 10;
+const DEFAULT_PROCESS_LIMIT = process.env.DEFAULT_PROCESS_LIMIT || 50;
+const MAX_PROCESS_LIMIT = process.env.MAX_PROCESS_LIMIT || 200;
+const PROCESS_BATCH_SIZE = process.env.PROCESS_BATCH_SIZE || 10;
 const SITEMAP_PATH_CANDIDATES = ['/sitemap.xml', '/sitemap_index.xml'];
+const CACHE_TTL = 1000 * 60 * 10; // 10 minutes
+const cache = new Map();
+const USER_AGENT = 'Mozilla/5.0 (compatible; OGGalaxyBot/1.0; +https://og.satyajit.xyz)';
+
+
+async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+  const controller = new AbortController();
+  const { signal } = controller;
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, { ...options, signal });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function getFromCache(key) {
+  const cached = cache.get(key);
+  if (cached && cached.expires > Date.now()) {
+    return cached.value;
+  }
+  cache.delete(key);
+  return null;
+}
+
+function setInCache(key, value) {
+  const expires = Date.now() + CACHE_TTL;
+  cache.set(key, { value, expires });
+}
+
 
 app.use(cors());
 app.use(express.json());
@@ -19,12 +53,16 @@ app.use(express.static('.'));
 
 // Helper function to extract OG image from HTML
 async function getOgImage(url) {
+  const cached = getFromCache(`og:${url}`);
+  if (cached) {
+    return cached;
+  }
+
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; OGGalaxyBot/1.0)'
-      },
-      timeout: 10000
+        'User-Agent': USER_AGENT
+      }
     });
     
     if (!response.ok) {
@@ -39,6 +77,7 @@ async function getOgImage(url) {
                     $('meta[property="og:image:url"]').attr('content') ||
                     $('meta[name="og:image"]').attr('content');
     
+    setInCache(`og:${url}`, ogImage || null);
     return ogImage || null;
   } catch (error) {
     console.error(`Error fetching ${url}:`, error.message);
@@ -67,22 +106,10 @@ function getBatchLimit(limit, defaultLimit = DEFAULT_PROCESS_LIMIT) {
 }
 
 async function processUrls(urls) {
-  const results = [];
-
-  for (let i = 0; i < urls.length; i += PROCESS_BATCH_SIZE) {
-    const batch = urls.slice(i, i + PROCESS_BATCH_SIZE);
-    const batchResults = await Promise.all(
-      batch.map(async (url) => {
-        const ogImage = await getOgImage(url);
-        return {
-          url,
-          ogImage
-        };
-      })
-    );
-    results.push(...batchResults);
-  }
-
+  const limit = pLimit(PROCESS_BATCH_SIZE);
+  const results = await Promise.all(
+    urls.map(url => limit(() => getOgImage(url).then(ogImage => ({ url, ogImage }))))
+  );
   return results;
 }
 
@@ -166,11 +193,10 @@ function buildSitemapCandidateUrls(inputUrl) {
 }
 
 async function fetchSitemapDocument(sitemapUrl) {
-  const response = await fetch(sitemapUrl, {
+  const response = await fetchWithTimeout(sitemapUrl, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; OGGalaxyBot/1.0)'
-    },
-    timeout: 10000
+      'User-Agent': USER_AGENT
+    }
   });
 
   if (!response.ok) {
@@ -182,7 +208,13 @@ async function fetchSitemapDocument(sitemapUrl) {
 
 // Helper function to get sitemap URLs
 async function getSitemapUrls(input) {
+  const cached = getFromCache(`sitemap:${input}`);
+  if (cached) {
+    return cached;
+  }
+
   const normalizedInput = normalizeInput(input);
+
 
   if (!normalizedInput) {
     throw new Error('Domain or sitemap URL is required');
@@ -197,11 +229,13 @@ async function getSitemapUrls(input) {
       const xml = await fetchSitemapDocument(sitemapUrl);
       const urls = await parseSitemap(xml, new Set([sitemapUrl]));
 
-      return {
+      const result = {
         urls,
         cleanDomain: inputUrl.host || inputUrl.hostname,
         resolvedSitemapUrl: sitemapUrl
       };
+      setInCache(`sitemap:${input}`, result);
+      return result;
     } catch (error) {
       lastError = error;
     }
@@ -267,7 +301,13 @@ async function parseSitemap(xml, visitedSitemaps = new Set()) {
 }
 
 // API endpoint to fetch OG images
-app.post('/api/fetch-og-images', async (req, res) => {
+app.post('/api/fetch-og-images', 
+  body('domain').notEmpty().isURL().trim().escape(),
+  async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   try {
     const { domain, input } = req.body || {};
     const submittedInput = normalizeInput(domain || input);
@@ -314,7 +354,14 @@ app.post('/api/fetch-og-images', async (req, res) => {
 });
 
 // API endpoint to process additional unprocessed URLs in batches
-app.post('/api/process-unprocessed', async (req, res) => {
+app.post('/api/process-unprocessed',
+  body('urls').isArray(),
+  body('urls.*').isURL(),
+  async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   try {
     const { urls, limit } = req.body;
     const sanitizedUrls = sanitizeUrls(urls);
@@ -348,6 +395,60 @@ app.post('/api/process-unprocessed', async (req, res) => {
   }
 });
 
+// Helper function to get all metadata for a URL
+async function getMetadata(url) {
+  const cached = getFromCache(`meta:${url}`);
+  if (cached) {
+    return cached;
+  }
+  try {
+    const response = await fetchWithTimeout(url, {
+      headers: {
+        'User-Agent': USER_AGENT
+      }
+    }, 15000); // 15 seconds
+    if (!response.ok) {
+      return null;
+    }
+    const html = await response.text();
+    const $ = load(html);
+    const metadata = {};
+    $('meta').each((i, el) => {
+      const property = $(el).attr('property') || $(el).attr('name');
+      const content = $(el).attr('content');
+      if (property && content) {
+        metadata[property] = content;
+      }
+    });
+    setInCache(`meta:${url}`, metadata);
+    return metadata;
+  } catch (error) {
+    console.error(`Error fetching metadata for ${url}:`, error.message);
+    return null;
+  }
+}
+
+app.get('/api/v1/metadata/og',
+  query('url').isURL(),
+  async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  const { url } = req.query;
+  try {
+    const metadata = await getMetadata(url);
+    if (!metadata) {
+      return res.status(404).json({ error: 'Metadata not found' });
+    }
+    res.json(metadata);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch metadata' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
+
