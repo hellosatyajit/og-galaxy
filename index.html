@@ -563,7 +563,11 @@
     <a href="https://clueless.builders" target="_blank" rel="noopener">Clueless Builders</a>
   </footer>
 
+  <og-metadata-viewer></og-metadata-viewer>
+
+  <script src="og-metadata-viewer.js"></script>
   <script>
+    const viewer = document.querySelector('og-metadata-viewer');
     const domainInput = document.getElementById('domainInput');
     const fetchBtn = document.getElementById('fetchBtn');
     const statusDiv = document.getElementById('status');
@@ -648,15 +652,23 @@
       link.target = '_blank';
       link.rel = 'noopener';
       link.textContent = url;
+      
+      const viewBtn = document.createElement('button');
+      viewBtn.textContent = 'View Metadata';
+      viewBtn.className = 'section-action-btn';
+      viewBtn.style.marginLeft = 'auto';
+      viewBtn.onclick = () => viewer.open(url);
 
       item.appendChild(iconSpan);
       item.appendChild(link);
+      item.appendChild(viewBtn);
       return item;
     }
 
     function createImageCard(page) {
       const card = document.createElement('div');
       card.className = 'card';
+      card.onclick = () => viewer.open(page.url);
 
       const img = document.createElement('img');
       img.src = page.ogImage;
